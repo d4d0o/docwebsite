@@ -4,21 +4,30 @@ import './globals.css';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import { SkipToContent } from '@/components/SkipToContent';
 
 export const metadata: Metadata = {
   title: 'Implement From Scratch',
   description: 'Implementation guides for building software from scratch',
+  keywords: ['programming', 'tutorials', 'implementation', 'from scratch', 'software engineering'],
+  authors: [{ name: 'Implement From Scratch' }],
+  openGraph: {
+    title: 'Implement From Scratch',
+    description: 'Implementation guides for building software from scratch',
+    type: 'website',
+  },
 };
 
-export default function RootLayout({
-  children,
-}: {
+interface RootLayoutProps {
   children: React.ReactNode;
-}) {
+}
+
+export default function RootLayout({ children }: RootLayoutProps): React.JSX.Element {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen flex flex-col bg-white dark:bg-[#0a0a0a] text-gray-900 dark:text-[#e5e5e5] transition-colors">
         <ThemeProvider>
+          <SkipToContent />
           <Header />
           <main className="flex-1 px-6 py-12">
             {children}
