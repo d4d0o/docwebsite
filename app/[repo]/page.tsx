@@ -25,7 +25,7 @@ export default async function GuidePage({ params }: PageProps) {
     // Fetch and parse README for title and description
     let readmeTitle = repoInfo.name;
     let readmeDescription = repoInfo.description;
-    
+
     try {
       const readmeContent = await getFileContent(repoName, 'README.md', repoInfo.default_branch);
       if (readmeContent) {
@@ -51,6 +51,7 @@ export default async function GuidePage({ params }: PageProps) {
           content={mainReadme}
           repoName={repoName}
           branch={repoInfo.default_branch}
+          skipFirstHeading={true}
         />
       </div>
     ) : null;

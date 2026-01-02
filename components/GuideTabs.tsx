@@ -1,7 +1,7 @@
 'use client';
 
 import { Tab } from '@headlessui/react';
-import RoadmapTree from './RoadmapTree';
+import RoadmapList from './RoadmapList';
 import { RoadmapTreeNode } from '@/lib/github';
 import { ReactNode } from 'react';
 
@@ -16,22 +16,20 @@ export default function GuideTabs({ descriptionContent, roadmapTree, repoName }:
     <Tab.Group>
       <Tab.List className="flex space-x-1 rounded-xl bg-gray-900 p-1 mb-8">
         <Tab className={({ selected }) =>
-          `w-full rounded-lg py-2.5 text-sm font-medium leading-5 transition-colors ${
-            selected
-              ? 'bg-gray-700 text-white shadow'
-              : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+          `w-full rounded-lg py-2.5 text-sm font-medium leading-5 transition-colors ${selected
+            ? 'bg-gray-700 text-white shadow'
+            : 'text-gray-400 hover:bg-gray-800 hover:text-white'
           }`
         }>
           Description
         </Tab>
         <Tab className={({ selected }) =>
-          `w-full rounded-lg py-2.5 text-sm font-medium leading-5 transition-colors ${
-            selected
-              ? 'bg-gray-700 text-white shadow'
-              : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+          `w-full rounded-lg py-2.5 text-sm font-medium leading-5 transition-colors ${selected
+            ? 'bg-gray-700 text-white shadow'
+            : 'text-gray-400 hover:bg-gray-800 hover:text-white'
           }`
         }>
-          Roadmap
+          Implementation Track
         </Tab>
       </Tab.List>
       <Tab.Panels>
@@ -39,7 +37,7 @@ export default function GuideTabs({ descriptionContent, roadmapTree, repoName }:
           {descriptionContent || <p className="text-gray-400">No description available.</p>}
         </Tab.Panel>
         <Tab.Panel>
-          <RoadmapTree tree={roadmapTree} repoName={repoName} />
+          <RoadmapList tree={roadmapTree} repoName={repoName} />
         </Tab.Panel>
       </Tab.Panels>
     </Tab.Group>
