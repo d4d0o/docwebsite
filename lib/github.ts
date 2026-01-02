@@ -1,4 +1,5 @@
 import { Octokit } from '@octokit/core';
+import { parseReadme } from './readme-parser';
 
 const ORG_NAME = 'implement-from-scratch';
 
@@ -17,6 +18,8 @@ export interface Repository {
   description: string | null;
   full_name: string;
   default_branch: string;
+  readmeTitle?: string;
+  readmeDescription?: string | null;
 }
 
 export interface RepoContent {
@@ -73,7 +76,24 @@ export async function getRepositoriesWithDocs(): Promise<Repository[]> {
 
   for (const repo of allRepos) {
     if (enabledRepos.includes(repo.name) && await hasDocsFolder(repo.name)) {
-      reposWithDocs.push(repo);
+      // Fetch and parse README
+      try {
+        const readmeContent = await getFileContent(repo.name, 'README.md', repo.default_branch);
+        if (readmeContent) {
+          const readmeData = parseReadme(readmeContent, repo.name);
+          reposWithDocs.push({
+            ...repo,
+            readmeTitle: readmeData.title,
+            readmeDescription: readmeData.description,
+          });
+        } else {
+          // Fallback if README not found
+          reposWithDocs.push(repo);
+        }
+      } catch (error) {
+        console.error(`Error parsing README for ${repo.name}:`, error);
+        reposWithDocs.push(repo);
+      }
     }
   }
 

@@ -20,7 +20,9 @@ export default function HomePageClient({ repos }: HomePageClientProps) {
       filtered = filtered.filter(
         (repo) =>
           repo.name.toLowerCase().includes(query) ||
-          repo.description?.toLowerCase().includes(query)
+          repo.description?.toLowerCase().includes(query) ||
+          repo.readmeTitle?.toLowerCase().includes(query) ||
+          repo.readmeDescription?.toLowerCase().includes(query)
       );
     }
 
@@ -28,7 +30,9 @@ export default function HomePageClient({ repos }: HomePageClientProps) {
       filtered = filtered.filter((repo) => {
         const name = repo.name.toLowerCase();
         const desc = repo.description?.toLowerCase() || '';
-        return name.includes(selectedFilter.toLowerCase()) || desc.includes(selectedFilter.toLowerCase());
+        const readmeDesc = repo.readmeDescription?.toLowerCase() || '';
+        const filterLower = selectedFilter.toLowerCase();
+        return name.includes(filterLower) || desc.includes(filterLower) || readmeDesc.includes(filterLower);
       });
     }
 
