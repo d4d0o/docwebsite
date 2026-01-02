@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -7,6 +9,9 @@
   --text-color: #1a1a1a;
   --border-color: #e5e5e5;
   --card-color: #ffffff;
+  --ascii-bg: #f8fafc;
+  --ascii-border: #e2e8f0;
+  --ascii-text: #1e293b;
 }
 
 .dark {
@@ -14,6 +19,9 @@
   --text-color: #e5e5e5;
   --border-color: #262626;
   --card-color: #171717;
+  --ascii-bg: #0d1117;
+  --ascii-border: #30363d;
+  --ascii-text: #c9d1d9;
 }
 
 body {
@@ -31,11 +39,26 @@ html {
 @layer base {
   code {
     @apply font-mono;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Monaco', 'Consolas', monospace;
   }
   
   pre {
     @apply font-mono;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Monaco', 'Consolas', monospace;
   }
+}
+
+/* ASCII Art specific styles */
+.ascii-art-content {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Monaco', 'Consolas', monospace;
+  font-feature-settings: 'liga' 0;
+  line-height: 1.4;
+  letter-spacing: 0;
+}
+
+/* Ensure box-drawing characters align properly */
+.ascii-art-content::selection {
+  background-color: rgba(59, 130, 246, 0.3);
 }
 
 .hljs {

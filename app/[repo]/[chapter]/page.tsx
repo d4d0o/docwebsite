@@ -1,6 +1,8 @@
 import { getRepoInfo, getFileContent, getChapters } from '@/lib/github';
 import { parseReadme } from '@/lib/readme-parser';
 import { MarkdownRenderer } from '@/components/MarkdownRenderer';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
+import { ProgressIndicator } from '@/components/ProgressIndicator';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
@@ -13,7 +15,7 @@ interface PageProps {
   };
 }
 
-export default async function ChapterPage({ params }: PageProps) {
+export default async function ChapterPage({ params }: PageProps): Promise<React.JSX.Element> {
   const { repo: repoName, chapter: chapterSlug } = params;
 
   try {
@@ -24,7 +26,7 @@ export default async function ChapterPage({ params }: PageProps) {
 
     const chapterIndex = chapters.findIndex((c) => c.slug === chapterSlug);
     const chapter = chapters[chapterIndex];
-    
+
     if (!chapter) {
       notFound();
     }
@@ -57,7 +59,7 @@ export default async function ChapterPage({ params }: PageProps) {
     const prevChapter = chapterIndex > 0 ? chapters[chapterIndex - 1] : null;
     const nextChapter = chapterIndex < chapters.length - 1 ? chapters[chapterIndex + 1] : null;
 
-    const getChapterDisplayName = (chapterName: string) => {
+    const getChapterDisplayName = (chapterName: string): string => {
       return chapterName
         .replace(/^\d+[-_]?/, '')
         .replace('.md', '')
@@ -65,29 +67,40 @@ export default async function ChapterPage({ params }: PageProps) {
         .replace(/\b\w/g, (l) => l.toUpperCase());
     };
 
+    // Build breadcrumb items
+    const breadcrumbItems = [
+      { label: repoTitle, href: `/${repoName}` },
+      { label: chapterTitle, href: `/${repoName}/${chapterSlug}` },
+    ];
+
     return (
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-4xl mx-auto px-4 md:px-8">
+        {/* Progress indicator */}
+        <ProgressIndicator
+          totalChapters={chapters.length}
+          currentChapterIndex={chapterIndex}
+          repoName={repoName}
+        />
+
+        {/* Breadcrumbs */}
+        <Breadcrumbs items={breadcrumbItems} />
+
+        {/* Chapter header */}
         <div className="mb-8">
-          <Link
-            href={`/${repoName}`}
-            className="inline-flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-300 transition-colors mb-6"
-          >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            Back to {repoTitle}
-          </Link>
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-4 mb-4">
             {chapterNumber && (
-              <span className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-blue-500 text-white font-bold text-lg">
+              <span className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white font-bold text-xl shadow-lg shadow-blue-500/25">
                 {chapterNumber}
               </span>
             )}
-            <h1 className="text-5xl font-bold text-gray-900 dark:text-white">{chapterTitle}</h1>
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white">
+              {chapterTitle}
+            </h1>
           </div>
         </div>
 
-        <article className="mb-12">
+        {/* Main content */}
+        <article id="main-content" className="mb-12">
           <MarkdownRenderer
             content={chapterContent}
             repoName={repoName}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useEffect, useState } from 'react';
+import React, { useMemo, useEffect, useState, useCallback } from 'react';
 import {
   ReactFlow,
   Node,
@@ -11,13 +11,14 @@ import {
   useReactFlow,
   ConnectionMode,
   MarkerType,
+  NodeMouseHandler,
 } from '@reactflow/core';
 import { Background } from '@reactflow/background';
 import { Controls } from '@reactflow/controls';
 import { MiniMap } from '@reactflow/minimap';
 import '@reactflow/core/dist/style.css';
 import dagre from 'dagre';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { RoadmapTreeNode } from '@/lib/github';
 
 interface RoadmapTreeProps {
@@ -30,23 +31,29 @@ interface CustomNodeData {
   type: 'root' | 'part' | 'chapter';
   slug?: string;
   description?: string;
+  repoName?: string;
 }
 
-const nodeWidth = 220;
-const nodeHeight = 120;
+const NODE_WIDTH = 280;
+const NODE_HEIGHT = 100;
 
+/**
+ * Layout the graph using Dagre
+ */
 function getLayoutedElements(nodes: Node[], edges: Edge[], direction: 'LR' | 'TB' = 'TB') {
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
-  dagreGraph.setGraph({ 
-    rankdir: direction, 
-    nodesep: 50,
-    edgesep: 10,
-    ranksep: 100,
+
+  const isHorizontal = direction === 'LR';
+
+  dagreGraph.setGraph({
+    rankdir: direction,
+    nodesep: isHorizontal ? 60 : 100,
+    ranksep: isHorizontal ? 100 : 80,
   });
 
   nodes.forEach((node) => {
-    dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
+    dagreGraph.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
   });
 
   edges.forEach((edge) => {
@@ -55,137 +62,133 @@ function getLayoutedElements(nodes: Node[], edges: Edge[], direction: 'LR' | 'TB
 
   dagre.layout(dagreGraph);
 
-  const isHorizontal = direction === 'LR';
-  
   nodes.forEach((node) => {
     const nodeWithPosition = dagreGraph.node(node.id);
     node.targetPosition = isHorizontal ? Position.Left : Position.Top;
     node.sourcePosition = isHorizontal ? Position.Right : Position.Bottom;
+
+    // Slight random offset to make it look less robotic if desired, 
+    // but for this design strict alignment is better.
     node.position = {
-      x: nodeWithPosition.x - nodeWidth / 2,
-      y: nodeWithPosition.y - nodeHeight / 2,
+      x: nodeWithPosition.x - NODE_WIDTH / 2,
+      y: nodeWithPosition.y - NODE_HEIGHT / 2,
     };
   });
 
   return { nodes, edges };
 }
 
-function CustomNode({ data, repoName }: { data: CustomNodeData; repoName: string }) {
-  const { label, type, slug, description } = data;
+/**
+ * Custom Node Component matching the PaperCode ML150 aesthetic.
+ * Minimalist, dark, border-focused.
+ */
+function CustomNode({ data }: { data: CustomNodeData }): React.JSX.Element {
+  const { label, type, slug } = data;
+  const isClickable = type === 'chapter' && !!slug;
 
-  const getCategory = () => {
-    if (type === 'root') return '';
+  const getCategory = (): string => {
+    if (type === 'root') return 'ROOT';
     if (type === 'part') {
       const partMatch = label.match(/part\s+(\d+)/i);
-      return partMatch ? `PART ${partMatch[1]}` : 'PART';
+      return partMatch ? `PART ${partMatch[1]}` : 'MODULE';
     }
     return 'CHAPTER';
   };
 
-  const getIcon = () => {
-    if (type === 'root') {
-      return (
-        <div className="flex flex-col items-center justify-center text-white text-xs font-bold leading-tight">
-          <div>01</div>
-          <div className="text-[10px] opacity-75">10</div>
-        </div>
-      );
-    }
+  const getTitle = (): string => {
     if (type === 'part') {
-      return (
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
-        </svg>
-      );
+      const cleanLabel = label.replace(/^part\s+\d+[:\s-]*/i, '').trim();
+      return cleanLabel || label;
     }
-    return (
-      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-        <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
-      </svg>
-    );
-  };
-
-  const getTitle = () => {
-    if (type === 'part') {
-      return label.replace(/^part\s+\d+[:\s-]*/i, '').trim();
-    }
-    // Format chapter titles: "command parsing" -> "Command Parsing"
+    // "01_introduction" -> "Introduction"
     return label
+      .replace(/^\d+[-_]?/, '')
+      .replace(/_/g, ' ')
+      .replace('.md', '')
       .split(' ')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
   };
 
-  const getChapterNumber = () => {
-    if (type === 'chapter' && slug) {
-      const match = slug.match(/^(\d+)/);
-      return match ? match[1].padStart(2, '0') : '';
+  const Icon = () => {
+    if (type === 'root') {
+      return (
+        <svg className="w-5 h-5 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+        </svg>
+      );
     }
-    return '';
+    if (type === 'part') {
+      return (
+        <svg className="w-5 h-5 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+        </svg>
+      );
+    }
+    // Chapter icon
+    return (
+      <svg className="w-5 h-5 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    );
   };
 
-  const nodeContent = (
-    <div className="relative bg-gray-800 border border-gray-600 rounded-md p-4 shadow-md text-white text-center w-full h-full">
-      <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-1/2">
-        <div className="bg-gray-900 rounded-full w-6 h-6 flex items-center justify-center border border-gray-600">
-          {getIcon()}
-        </div>
+  return (
+    <div
+      className={`
+        group relative w-full h-full flex flex-col items-center justify-center
+        bg-[#0a0a0a] border border-[#333] rounded-xl px-6 py-4
+        transition-all duration-200
+        ${isClickable ? 'hover:border-white cursor-pointer hover:shadow-[0_0_15px_rgba(255,255,255,0.1)]' : ''}
+      `}
+    >
+      {/* Top connector dot (visual only) */}
+      <div className="absolute -top-[1px] left-1/2 -translate-x-1/2 w-2 h-[1px] bg-[#333] group-hover:bg-white transition-colors" />
+
+      {/* Icon Bubble */}
+      <div className="mb-3 p-2 rounded-lg bg-[#111] border border-[#222] group-hover:border-[#444] transition-colors">
+        <Icon />
       </div>
-      <div className="pl-2">
-        {getCategory() && (
-          <div className="text-gray-400 text-[10px] font-semibold uppercase tracking-wider mb-1">
-            {getCategory()}
-          </div>
-        )}
-        <div className="text-white font-bold text-sm leading-tight mb-1">
-          {type === 'chapter' && getChapterNumber() && (
-            <span className="text-gray-400 mr-1">{getChapterNumber()}</span>
-          )}
+
+      <div className="text-center">
+        <div className="text-[10px] font-mono uppercase tracking-widest text-gray-500 mb-1">
+          {getCategory()}
+        </div>
+        <div className="text-sm font-bold text-gray-200 group-hover:text-white leading-tight">
           {getTitle()}
         </div>
-        {description && type === 'chapter' && (
-          <div className="text-gray-400 text-xs mt-1 line-clamp-2 leading-relaxed">
-            {description}
-          </div>
-        )}
       </div>
     </div>
   );
-
-  if (type === 'chapter' && slug) {
-    return (
-      <Link href={`/${repoName}/${slug}`} className="block h-full">
-        {nodeContent}
-      </Link>
-    );
-  }
-
-  return nodeContent;
 }
 
-const createNodeTypes = (repoName: string) => ({
-  custom: (props: any) => <CustomNode {...props} repoName={repoName} />,
-});
+const nodeTypes = {
+  custom: CustomNode,
+};
 
 function FitViewHelper() {
   const { fitView } = useReactFlow();
-  
+
   useEffect(() => {
-    setTimeout(() => {
-      fitView({ padding: 0.2 });
+    const timer = setTimeout(() => {
+      fitView({ padding: 0.15, duration: 800 });
     }, 100);
+    return () => clearTimeout(timer);
   }, [fitView]);
-  
+
   return null;
 }
 
-export default function RoadmapTree({ tree, repoName }: RoadmapTreeProps) {
+export default function RoadmapTree({ tree, repoName }: RoadmapTreeProps): React.JSX.Element {
+  const router = useRouter();
   const [direction, setDirection] = useState<'LR' | 'TB'>('TB');
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
+  // Handle responsive layout
   useEffect(() => {
     const updateDirection = () => {
+      // Use Left-to-Right on smaller screens for better vertical scrolling flow
       setDirection(window.innerWidth < 768 ? 'LR' : 'TB');
     };
     updateDirection();
@@ -193,21 +196,23 @@ export default function RoadmapTree({ tree, repoName }: RoadmapTreeProps) {
     return () => window.removeEventListener('resize', updateDirection);
   }, []);
 
+  // Construct graph
   const { nodes: layoutedNodes, edges: layoutedEdges } = useMemo(() => {
     const flowNodes: Node[] = [];
     const flowEdges: Edge[] = [];
 
     const buildNodes = (node: RoadmapTreeNode, parentId?: string) => {
       const nodeId = node.id;
+
       flowNodes.push({
         id: nodeId,
         type: 'custom',
-        position: { x: 0, y: 0 }, // Will be set by dagre layout
+        position: { x: 0, y: 0 },
         data: {
           label: node.label,
           type: node.type,
           slug: node.slug,
-          description: node.description,
+          repoName,
         },
       });
 
@@ -216,17 +221,11 @@ export default function RoadmapTree({ tree, repoName }: RoadmapTreeProps) {
           id: `${parentId}-${nodeId}`,
           source: parentId,
           target: nodeId,
-          type: 'bezier',
+          type: 'bezier', // Smooth curved lines like ML150
           animated: false,
-          style: { 
-            stroke: '#6b7280', 
-            strokeWidth: 2,
-          },
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            color: '#6b7280',
-            width: 20,
-            height: 20,
+          style: {
+            stroke: '#404040',
+            strokeWidth: 1.5,
           },
         });
       }
@@ -243,49 +242,57 @@ export default function RoadmapTree({ tree, repoName }: RoadmapTreeProps) {
     return getLayoutedElements(flowNodes, flowEdges, direction);
   }, [tree, direction, repoName]);
 
+  // Update layout when nodes/direction change
   useEffect(() => {
     setNodes(layoutedNodes);
     setEdges(layoutedEdges);
   }, [layoutedNodes, layoutedEdges, setNodes, setEdges]);
 
-  const nodeTypes = useMemo(() => createNodeTypes(repoName), []);
+  // Handle node clicks
+  const onNodeClick: NodeMouseHandler = useCallback((_, node) => {
+    const { type, slug } = node.data as CustomNodeData;
+    if (type === 'chapter' && slug) {
+      router.push(`/${repoName}/${slug}`);
+    }
+  }, [repoName, router]);
 
   return (
-    <div className="w-full h-[900px] border border-gray-700 rounded-lg bg-gray-950 overflow-hidden">
+    // "Utilize full screen" - Using h-[calc(100vh-100px)] to take up most of the viewport while respecting header
+    <div className="w-full h-[calc(100vh-140px)] min-h-[600px] border border-gray-800 rounded-xl bg-black overflow-hidden shadow-2xl relative">
+      {/* Subtle grid background if desired */}
+      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-5 pointer-events-none" />
+
       <ReactFlow
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
+        onNodeClick={onNodeClick}
         connectionMode={ConnectionMode.Loose}
         nodesDraggable={false}
         nodesConnectable={false}
-        elementsSelectable={false}
+        elementsSelectable={true} // Enable selection for clicking
         fitView
-        fitViewOptions={{ padding: 0.2 }}
-        className="bg-gray-950"
-        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
-        minZoom={0.3}
-        maxZoom={2}
+        className="bg-black"
+        minZoom={0.2}
+        maxZoom={4}
+        proOptions={{ hideAttribution: true }}
       >
-        <Background 
-          color="#374151" 
-          gap={20} 
+        <Background
+          color="#222"
+          gap={24}
           size={1}
+          style={{ opacity: 0.5 }}
         />
-        <Controls 
-          className="bg-gray-900/80 border-gray-700 [&>button]:bg-gray-800 [&>button]:text-white [&>button:hover]:bg-gray-700 [&>button]:border-gray-600" 
-        />
-        <MiniMap
-          className="bg-gray-900/80 border-gray-700"
-          nodeColor="#1f2937"
-          maskColor="rgba(0, 0, 0, 0.7)"
-          pannable
-          zoomable
+        <Controls
+          className="bg-gray-900/90 border-gray-700 [&>button]:bg-transparent [&>button]:text-gray-400 [&>button:hover]:text-white [&>button]:border-0"
+          position="bottom-right"
+          showInteractive={false}
         />
         <FitViewHelper />
       </ReactFlow>
     </div>
   );
 }
+
