@@ -224,8 +224,9 @@ export default function RoadmapTree({ tree, repoName }: RoadmapTreeProps): React
           type: 'bezier', // Smooth curved lines like ML150
           animated: false,
           style: {
-            stroke: '#404040',
-            strokeWidth: 1.5,
+            stroke: '#888', // Lighter grey for visibility
+            strokeWidth: 2,
+            opacity: 0.8,
           },
         });
       }
@@ -257,8 +258,8 @@ export default function RoadmapTree({ tree, repoName }: RoadmapTreeProps): React
   }, [repoName, router]);
 
   return (
-    // "Utilize full screen" - Using h-[calc(100vh-100px)] to take up most of the viewport while respecting header
-    <div className="w-full h-[calc(100vh-140px)] min-h-[600px] border border-gray-800 rounded-xl bg-black overflow-hidden shadow-2xl relative">
+    // "Utilize full screen" - Using h-[calc(100vh-140px)] min-h-[600px] to ensure sufficient space
+    <div className="w-full h-[85vh] min-h-[600px] border border-gray-800 rounded-xl bg-black overflow-hidden shadow-2xl relative ring-1 ring-gray-800">
       {/* Subtle grid background if desired */}
       <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-5 pointer-events-none" />
 
@@ -274,9 +275,10 @@ export default function RoadmapTree({ tree, repoName }: RoadmapTreeProps): React
         nodesConnectable={false}
         elementsSelectable={true} // Enable selection for clicking
         fitView
+        fitViewOptions={{ padding: 0.15 }} // Reduced padding
         className="bg-black"
-        minZoom={0.2}
-        maxZoom={4}
+        minZoom={0.5} // Prevent too-small initial view
+        maxZoom={2}
         proOptions={{ hideAttribution: true }}
       >
         <Background
